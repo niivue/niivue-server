@@ -1,11 +1,14 @@
 const express = require('express');
 const ws = require('ws');
 const queryString = require('query-string');
+const { v4: uuidv4 } = require('uuid')
+// const url = require('url');
 
 let sessionMap = new Map();
 
 const app = express();
 const wsServer = new ws.Server({ noServer: true });
+
 wsServer.on('connection', (websocketConnection, connectionRequest) => {
   const [_path, params] = connectionRequest?.url?.split("?");
   const connectionParams = queryString.parse(params);
@@ -16,15 +19,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
     if(sessionMap.has(session)) {
       scene = sessionMap.get(session);
     }
-    else {
-      scene = {
-        elevation: 0,
-        azimuth: 0,
-        zoom: 1.0,
-        cliplane: [0, 0, 0, 0]
-      }
-      sessionMap.set(session, scene);
-    }
+   
   }
 
   websocketConnection.on('message', message => {
@@ -34,11 +29,48 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
     }
 
     switch(parsedMessage.type) {
+      case 'create':
+        // check if we already have the session
+        if(sessionMap.has(session)) {
+          res = {
+            message: 'duplicate session'
+          }
+        }
+        else {
+          scene = {
+            elevation: 0,
+            azimuth: 0,
+            zoom: 1.0,
+            cliplane: [0, 0, 0, 0],
+            key: uuidv4()
+          }
+          sessionMap.set(session, scene);
+          console.log(connectionRequest);
+          let host = '';
+          let protocol = 'ws://';
+          for(let i = 0; i < connectionRequest.rawHeaders.length; i++ ) {
+            if(connectionRequest.rawHeaders[i] === 'Host') {
+              host = connectionRequest.rawHeaders[i + 1];
+            } else if(connectionRequest.rawHeaders[i] === 'Host') {
+
+            }
+          }
+          let sessionUrl = new URL(protocol+host);
+          sessionUrl.pathname = 'websockets';
+          sessionUrl.search = 'session=' + session;
+          console.log(sessionUrl);
+          res['url'] = sessionUrl.href;
+          res['key'] = scene.key;
+        }
+        break;
       case 'put':
-        scene.azimuth = parsedMessage.azimuth;
-        scene.elevation = parsedMessage.elevation;
-        scene.zoom = parsedMessage.zoom;
-        scene.clipPlane = parsedMessage.clipPlane;
+        // only allow requests with session key to update
+        if(scene.key === parsedMessage.key) {
+          scene.azimuth = parsedMessage.azimuth;
+          scene.elevation = parsedMessage.elevation;
+          scene.zoom = parsedMessage.zoom;
+          scene.clipPlane = parsedMessage.clipPlane;
+        }
         break;
       default:
         res['azimuth'] = scene.azimuth;

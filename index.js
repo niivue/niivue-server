@@ -30,8 +30,9 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
       message: 'OK'
     }
 
-    switch(parsedMessage.type) {
+    switch(parsedMessage.op) {
       case 'create':
+        res['op'] = 'create';
         // check if we already have the session
         if(sessionMap.has(session)) {
           res = {
@@ -62,9 +63,10 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           res['url'] = sessionUrl.href;
           res['key'] = scene.key;
           // console.log('created session ' + session);
+          // console.log('url: ' + res['url']);
         }
         break;
-      case 'put':
+      case 'update':
         // only allow requests with session key to update
         if(scene.key === parsedMessage.key) {
           scene.azimuth = parsedMessage.azimuth;
@@ -76,6 +78,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
             if(connection === websocketConnection)
               continue;
             update = {
+              op: 'update',
               message: 'OK',
               azimuth: scene.azimuth,
               elevation: scene.elevation,
@@ -86,7 +89,12 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           }
         }
         break;
+      case 'join':
+        res['op'] = 'join';  
+        res['isController'] = parsedMessage.key === scene.key;
+        break;
       default:
+        res['op'] = 'update';
         res['azimuth'] = scene.azimuth;
         res['elevation'] = scene.elevation;
         res['zoom'] = scene.zoom;

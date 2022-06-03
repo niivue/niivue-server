@@ -32,7 +32,7 @@ this.serverConnection$?.subscribe({
       complete: () => console.log('complete') // Called when connection is closed (for whatever reason).
      });
 ...
-// request updates to the server
+// request updates from the server
 this.serverConnection$?.next({
           "type": "get",          
         });  

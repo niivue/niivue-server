@@ -39,7 +39,7 @@ this.serverConnection$?.subscribe({
 this.serverConnection$?.next({
           "type": "get",          
         });  
-
+...
 // send updates to the server
 this.serverConnection$?.next({
           "type": "put", 

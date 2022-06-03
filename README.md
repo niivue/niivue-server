@@ -11,10 +11,7 @@ Angular Example
 ```typescript
 private serverConnection$?: WebSocketSubject<unknown>;
 ...
-
-
 this.serverConnection$ = webSocket(`ws://localhost:3000/websockets?session=${this.id}`);
-// add another param at the end to indicate a controller 
 ...
 // respond to server messages
 this.serverConnection$?.subscribe({

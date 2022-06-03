@@ -2,17 +2,20 @@ const express = require('express');
 const ws = require('ws');
 const queryString = require('query-string');
 const { v4: uuidv4 } = require('uuid')
-// const url = require('url');
 
 let sessionMap = new Map();
 
 const app = express();
 const wsServer = new ws.Server({ noServer: true });
+const connections = [];
 
 wsServer.on('connection', (websocketConnection, connectionRequest) => {
   const [_path, params] = connectionRequest?.url?.split("?");
   const connectionParams = queryString.parse(params);
   const session = connectionParams['session'];
+  
+  connections.push(websocketConnection);
+  
   let scene = null;
   console.log('session ' + session);
   if(session) {
@@ -45,7 +48,6 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
             key: uuidv4()
           }
           sessionMap.set(session, scene);
-          console.log(connectionRequest);
           let host = '';
           let protocol = 'ws://';
           for(let i = 0; i < connectionRequest.rawHeaders.length; i++ ) {
@@ -58,7 +60,6 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           let sessionUrl = new URL(protocol+host);
           sessionUrl.pathname = 'websockets';
           sessionUrl.search = 'session=' + session;
-          console.log(sessionUrl);
           res['url'] = sessionUrl.href;
           res['key'] = scene.key;
         }
@@ -70,6 +71,20 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           scene.elevation = parsedMessage.elevation;
           scene.zoom = parsedMessage.zoom;
           scene.clipPlane = parsedMessage.clipPlane;
+
+          for(const connection of connections) {
+            if(connection === websocketConnection)
+              continue;
+            update = {
+              message: 'OK',
+              azimuth: scene.azimuth,
+              elevation: scene.elevation,
+              zoom: scene.zoom,
+              clipPlane: scene.clipPlane
+            }
+            connection.send(JSON.stringify(update));
+            console.log('sent update');
+          }
         }
         break;
       default:

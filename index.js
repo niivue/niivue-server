@@ -36,7 +36,8 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
         // check if we already have the session
         if(sessionMap.has(session)) {
           res = {
-            message: 'duplicate session'
+            message: 'duplicate session',
+            isError: true
           }
         }
         else {

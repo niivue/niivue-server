@@ -13,7 +13,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
   const [_path, params] = connectionRequest?.url?.split("?");
   const connectionParams = queryString.parse(params);
   const session = connectionParams['session'];
-  
+  // console.log('new connection on session ' + session);
   connections.push(websocketConnection);
   
   let scene = null;
@@ -61,6 +61,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           sessionUrl.search = 'session=' + session;
           res['url'] = sessionUrl.href;
           res['key'] = scene.key;
+          // console.log('created session ' + session);
         }
         break;
       case 'put':

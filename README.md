@@ -43,7 +43,8 @@ this.serverConnection$?.next({
           "azimuth": this.niivue.scene.renderAzimuth,
           "elevation": this.niivue.scene.renderElevation,
           "clipPlane": this.niivue.scene.clipPlane,
-          "zoom": this.niivue.volScaleMultiplier
+          "zoom": this.niivue.volScaleMultiplier,
+          "key": this.sessionKey
         });    
 
 ```

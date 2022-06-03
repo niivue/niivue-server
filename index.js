@@ -17,7 +17,6 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
   connections.push(websocketConnection);
   
   let scene = null;
-  console.log('session ' + session);
   if(session) {
     if(sessionMap.has(session)) {
       scene = sessionMap.get(session);
@@ -83,7 +82,6 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
               clipPlane: scene.clipPlane
             }
             connection.send(JSON.stringify(update));
-            console.log('sent update');
           }
         }
         break;

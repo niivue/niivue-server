@@ -10,6 +10,8 @@ const REMOVE_VOLUME_URL = "remove volume media";
 const ADD_MESH_URL = "add mesh url";
 const REMOVE_MESH_URL = "remove mesh media";
 const SET_4D_VOL_INDEX = "set 4d vol index";
+const UPDATE_IMAGE_OPTIONS = "update image options";
+const ACK = "ack";
 
 let sessionMap = new Map();
 
@@ -47,12 +49,13 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
   websocketConnection.on('message', message => {
     const parsedMessage = JSON.parse(message);
     let res = {
-      message: 'OK'
+      message: 'OK',
+      op: ACK
     }
 
     switch (parsedMessage.op) {
       case CREATE:
-        res['op'] = 'create';
+        res.op = CREATE;
         // check if we already have the session
         if (sessionMap.has(session)) {
           res = {
@@ -97,7 +100,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           scene.clipPlane = parsedMessage.clipPlane;
           // console.log('with correct key');
           sendClientsMessage(websocketConnection, {
-            op: 'update',
+            op: UPDATE,
             message: 'OK',
             azimuth: scene.azimuth,
             elevation: scene.elevation,
@@ -107,15 +110,17 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
         }
         break;
       case JOIN:
-        res['op'] = 'join';
+        res.op = JOIN;
         res['isController'] = parsedMessage.key === scene.key;
         break;
+      case UPDATE_IMAGE_OPTIONS:
       case ADD_VOLUME_URL:
         if (scene.key === parsedMessage.key) {
-          sendClientsMessage(websocketConnection, {
-            op: ADD_VOLUME_URL,
+          let msg = {
+            op: parsedMessage.op,
             urlImageOptions: parsedMessage.urlImageOptions
-          });
+          }
+          sendClientsMessage(websocketConnection, msg);
         }
         break;
       case REMOVE_VOLUME_URL:

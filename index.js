@@ -9,7 +9,7 @@ const JOIN = "join";
 const REMOVE_VOLUME_URL = "remove volume media";
 const ADD_MESH_URL = "add mesh url";
 const REMOVE_MESH_URL = "remove mesh media";
-
+const SET_4D_VOL_INDEX = "set 4d vol index";
 
 let sessionMap = new Map();
 
@@ -106,7 +106,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           });
         }
         break;
-      case 'join':
+      case JOIN:
         res['op'] = 'join';
         res['isController'] = parsedMessage.key === scene.key;
         break;
@@ -125,6 +125,16 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
             url: parsedMessage.url
           });
         }
+        break;
+      case SET_4D_VOL_INDEX:
+        if (scene.key === parsedMessage.key) {
+          sendClientsMessage(websocketConnection, {
+            op: SET_4D_VOL_INDEX,
+            url: parsedMessage.url,
+            index: parsedMessage.index
+          });
+        }
+        break;
       default:
         res['op'] = 'update';
         res['azimuth'] = scene.azimuth;

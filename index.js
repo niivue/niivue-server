@@ -140,6 +140,23 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           });
         }
         break;
+      case ADD_MESH_URL:
+          if (scene.key === parsedMessage.key) {
+            let msg = {
+              op: parsedMessage.op,
+              urlMeshOptions: parsedMessage.urlMeshOptions
+            }
+            sendClientsMessage(websocketConnection, msg);
+          }
+          break;
+      case REMOVE_MESH_URL:
+            if (scene.key === parsedMessage.key) {
+              sendClientsMessage(websocketConnection, {
+                op: REMOVE_MESH_URL,
+                url: parsedMessage.url
+              });
+            }
+            break;
       default:
         res['op'] = 'update';
         res['azimuth'] = scene.azimuth;

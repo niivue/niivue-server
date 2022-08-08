@@ -14,7 +14,7 @@ const UPDATE_IMAGE_OPTIONS = "update image options";
 const ACK = "ack";
 
 let sessionMap = new Map();
-
+let userMap = new Map();
 const app = express();
 const wsServer = new ws.Server({ noServer: true });
 const connections = [];
@@ -29,6 +29,20 @@ function sendClientsMessage(sender, msg) {
     count++;
   }
   // console.log('sent ' + count + ' message');
+}
+
+function assignUser(parsedMessage) {
+  let userName;
+  if(parsedMessage.userName) {
+    userName = userName;
+  }
+  else {
+    userName = `user-${uuidv4()}`;
+  }
+  let userKey = uuidv4();
+  let userColor = (parsedMessage.userColor) ? parsedMessage.userColor : [Math.random(), Math.random(), Math.random()];
+  userMap.set(userKey, {userName, userColor});
+  return userKey;
 }
 
 wsServer.on('connection', (websocketConnection, connectionRequest) => {
@@ -72,6 +86,8 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
             key: uuidv4()
           }
           sessionMap.set(session, scene);
+          let userKey = assignUser(parsedMessage);
+          
           let host = '';
           let protocol = 'ws://';
           for (let i = 0; i < connectionRequest.rawHeaders.length; i++) {
@@ -86,6 +102,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           sessionUrl.search = 'session=' + session;
           res['url'] = sessionUrl.href;
           res['key'] = scene.key;
+          res['uerKey'] = userKey;
           // console.log('created session ' + session);
           // console.log('url: ' + res['url']);
         }
@@ -112,6 +129,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
       case JOIN:
         res.op = JOIN;
         res['isController'] = parsedMessage.key === scene.key;
+        res['userKey'] = assignUser(parsedMessage);
         break;
       case UPDATE_IMAGE_OPTIONS:
       case ADD_VOLUME_URL:
@@ -157,6 +175,8 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
               });
             }
             break;
+
+
       default:
         res['op'] = 'update';
         res['azimuth'] = scene.azimuth;

@@ -12,6 +12,7 @@ const REMOVE_MESH_URL = "remove mesh media";
 const SET_4D_VOL_INDEX = "set 4d vol index";
 const UPDATE_IMAGE_OPTIONS = "update image options";
 const ACK = "ack";
+const UPDATE_CROSSHAIRS = "update cursor";
 
 let sessionMap = new Map();
 let userMap = new Map();
@@ -102,7 +103,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           sessionUrl.search = 'session=' + session;
           res['url'] = sessionUrl.href;
           res['key'] = scene.key;
-          res['uerKey'] = userKey;
+          res['userKey'] = userKey;
           // console.log('created session ' + session);
           // console.log('url: ' + res['url']);
         }
@@ -175,10 +176,18 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
               });
             }
             break;
-
+      case UPDATE_CROSSHAIRS:
+            if(userMap.has(parsedMessage.userKey)) {
+              let user = userMap.get(userKey);
+              if(parsedMessage.userName == userMap.userName) {
+                user.crosshairs = parsedMessage.crosshairs;
+                userMap.set(parsedMessage.userKey, user);
+              }
+            }
+      break;
 
       default:
-        res['op'] = 'update';
+        res['op'] = UPDATE;
         res['azimuth'] = scene.azimuth;
         res['elevation'] = scene.elevation;
         res['zoom'] = scene.zoom;

@@ -32,16 +32,16 @@ function sendClientsMessage(clientConnections, msg) {
 }
 
 function assignUser(parsedMessage) {
-  let userName;
-  if(parsedMessage.userName) {
-    userName = userName;
+  let name;
+  if(parsedMessage.name) {
+    name = parsedMessage.name;
   }
   else {
-    userName = `user-${uuidv4()}`;
+    name = `user-${uuidv4()}`;
   }
   let userKey = uuidv4();
-  let userColor = (parsedMessage.userColor) ? parsedMessage.userColor : [Math.random(), Math.random(), Math.random()];
-  userMap.set(userKey, {userName, userColor});
+  let color = (parsedMessage.color) ? parsedMessage.color : [Math.random(), Math.random(), Math.random()];
+  userMap.set(userKey, {name, color});
   return userKey;
 }
 
@@ -186,9 +186,14 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
       case UPDATE_CROSSHAIRS:
             if(userMap.has(parsedMessage.userKey)) {
               let user = userMap.get(userKey);
-              if(parsedMessage.userName == userMap.userName) {
-                user.crosshairs = parsedMessage.crosshairs;
+              if(parsedMessage.name == userMap.name) {
+                user.crosshairsPos = parsedMessage.crosshairsPos;
                 userMap.set(parsedMessage.userKey, user);
+                sendOtherClientsMessage(websocketConnection, {
+                  op: UPDATE_CROSSHAIRS,
+                  userName: user.name,
+                  crosshairsPos: user.crosshairsPos
+                });
               }
             }
       break;

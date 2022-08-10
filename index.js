@@ -12,7 +12,7 @@ const REMOVE_MESH_URL = "remove mesh media";
 const SET_4D_VOL_INDEX = "set 4d vol index";
 const UPDATE_IMAGE_OPTIONS = "update image options";
 const ACK = "ack";
-const UPDATE_CROSSHAIRS = "update cursor";
+const UPDATE_CROSSHAIRS = "update crosshairs";
 const USER_JOINED = "user joined";
 
 let sessionMap = new Map();

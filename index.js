@@ -13,6 +13,7 @@ const SET_4D_VOL_INDEX = "set 4d vol index";
 const UPDATE_IMAGE_OPTIONS = "update image options";
 const ACK = "ack";
 const UPDATE_CROSSHAIRS = "update cursor";
+const USER_JOINED = "user joined";
 
 let sessionMap = new Map();
 let userMap = new Map();
@@ -20,16 +21,14 @@ const app = express();
 const wsServer = new ws.Server({ noServer: true });
 const connections = [];
 
-function sendClientsMessage(sender, msg) {
-  let count = 0;
-  for (const connection of connections) {
-    if (connection === sender)
-      continue;
+function sendOtherClientsMessage(sender, msg) {
+  sendClientsMessage(connections.filter(c => c != sender), msg);
+}
 
+function sendClientsMessage(clientConnections, msg) {
+  for (const connection of clientConnections) {    
     connection.send(JSON.stringify(msg));
-    count++;
   }
-  // console.log('sent ' + count + ' message');
 }
 
 function assignUser(parsedMessage) {
@@ -44,6 +43,22 @@ function assignUser(parsedMessage) {
   let userColor = (parsedMessage.userColor) ? parsedMessage.userColor : [Math.random(), Math.random(), Math.random()];
   userMap.set(userKey, {userName, userColor});
   return userKey;
+}
+
+function getSessionUrl(connectionRequest, session) {
+  let host = '';
+  let protocol = 'ws://';
+  for (let i = 0; i < connectionRequest.rawHeaders.length; i++) {
+    if (connectionRequest.rawHeaders[i] === 'Host') {
+      host = connectionRequest.rawHeaders[i + 1];
+    } else if (connectionRequest.rawHeaders[i] === 'Host') {
+
+    }
+  }
+  let sessionUrl = new URL(protocol + host);
+  sessionUrl.pathname = 'websockets';
+  sessionUrl.search = 'session=' + session;
+  return sessionUrl.href;
 }
 
 wsServer.on('connection', (websocketConnection, connectionRequest) => {
@@ -73,10 +88,8 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
         res.op = CREATE;
         // check if we already have the session
         if (sessionMap.has(session)) {
-          res = {
-            message: 'duplicate session',
-            isError: true
-          }
+          res.message = 'duplicate session';
+          res.isError = true;            
         }
         else {
           scene = {
@@ -89,19 +102,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           sessionMap.set(session, scene);
           let userKey = assignUser(parsedMessage);
           
-          let host = '';
-          let protocol = 'ws://';
-          for (let i = 0; i < connectionRequest.rawHeaders.length; i++) {
-            if (connectionRequest.rawHeaders[i] === 'Host') {
-              host = connectionRequest.rawHeaders[i + 1];
-            } else if (connectionRequest.rawHeaders[i] === 'Host') {
-
-            }
-          }
-          let sessionUrl = new URL(protocol + host);
-          sessionUrl.pathname = 'websockets';
-          sessionUrl.search = 'session=' + session;
-          res['url'] = sessionUrl.href;
+          res['url'] = getSessionUrl(connectionRequest, session);
           res['key'] = scene.key;
           res['userKey'] = userKey;
           // console.log('created session ' + session);
@@ -117,7 +118,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
           scene.zoom = parsedMessage.zoom;
           scene.clipPlane = parsedMessage.clipPlane;
           // console.log('with correct key');
-          sendClientsMessage(websocketConnection, {
+          sendOtherClientsMessage(websocketConnection, {
             op: UPDATE,
             message: 'OK',
             azimuth: scene.azimuth,
@@ -130,7 +131,13 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
       case JOIN:
         res.op = JOIN;
         res['isController'] = parsedMessage.key === scene.key;
-        res['userKey'] = assignUser(parsedMessage);
+        res['url'] = getSessionUrl(connectionRequest, session);
+        res['userList'] = Array.from(userMap.values());
+        res['userKey'] = assignUser(parsedMessage);        
+        sendOtherClientsMessage(websocketConnection, {
+          op: USER_JOINED,
+          user: userMap.get(res['userKey'])
+        });
         break;
       case UPDATE_IMAGE_OPTIONS:
       case ADD_VOLUME_URL:
@@ -139,12 +146,12 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
             op: parsedMessage.op,
             urlImageOptions: parsedMessage.urlImageOptions
           }
-          sendClientsMessage(websocketConnection, msg);
+          sendOtherClientsMessage(websocketConnection, msg);
         }
         break;
       case REMOVE_VOLUME_URL:
         if (scene.key === parsedMessage.key) {
-          sendClientsMessage(websocketConnection, {
+          sendOtherClientsMessage(websocketConnection, {
             op: REMOVE_VOLUME_URL,
             url: parsedMessage.url
           });
@@ -152,7 +159,7 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
         break;
       case SET_4D_VOL_INDEX:
         if (scene.key === parsedMessage.key) {
-          sendClientsMessage(websocketConnection, {
+          sendOtherClientsMessage(websocketConnection, {
             op: SET_4D_VOL_INDEX,
             url: parsedMessage.url,
             index: parsedMessage.index
@@ -165,12 +172,12 @@ wsServer.on('connection', (websocketConnection, connectionRequest) => {
               op: parsedMessage.op,
               urlMeshOptions: parsedMessage.urlMeshOptions
             }
-            sendClientsMessage(websocketConnection, msg);
+            sendOtherClientsMessage(websocketConnection, msg);
           }
           break;
       case REMOVE_MESH_URL:
             if (scene.key === parsedMessage.key) {
-              sendClientsMessage(websocketConnection, {
+              sendOtherClientsMessage(websocketConnection, {
                 op: REMOVE_MESH_URL,
                 url: parsedMessage.url
               });

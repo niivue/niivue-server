@@ -12,21 +12,24 @@ const REMOVE_MESH_URL = "remove mesh media";
 const SET_4D_VOL_INDEX = "set 4d vol index";
 const UPDATE_IMAGE_OPTIONS = "update image options";
 const ACK = "ack";
-const UPDATE_CROSSHAIRS = "update crosshairs";
+const UPDATE_CROSSHAIR_POS = "update crosshair pos";
+const CROSSHAIR_POS_UPDATED = "crosshair pos updated";
 const USER_JOINED = "user joined";
+const UPDATE_USER_STATE = "update user state";
+const USER_STATE_UPDATED = "user state updated";
+const SCENE_STATE_UPDATED = "scene state update";
 
+let sessionOwnersMap = new Map();
 let sessionMap = new Map();
 let userMap = new Map();
+let connectionUserMap = new Map();
 const app = express();
 const wsServer = new ws.Server({ noServer: true });
 const connections = [];
 
 function sendOtherClientsMessage(sender, msg) {
-  let others = connections.filter(c => c != sender);  
-  sendClientsMessage(
-    others,
-    msg
-  );
+  let others = connections.filter((c) => c != sender);
+  sendClientsMessage(others, msg);
 }
 
 function sendClientsMessage(clientConnections, msg) {
@@ -35,18 +38,40 @@ function sendClientsMessage(clientConnections, msg) {
   }
 }
 
+/**
+ * Get a random color to assign user
+ * @returns {number[]} RGB color
+ */
+function getRandomColor() {
+  let color;
+  switch (Array.from(userMap.values()).length) {
+    case 0:
+      color = [1, 0, 0];
+    case 1:
+      color = [0, 1, 0];
+      break;
+    case 2:
+      color = [0, 0, 1];
+      break;
+    default:
+      color = [Math.random(), Math.random(), Math.random()];
+  }
+
+  return [...color, 1];
+}
+
 function assignUser(parsedMessage) {
-  let name;
-  if (parsedMessage.name) {
-    name = parsedMessage.name;
+  let displayName;
+  let id = uuidv4();
+  if (parsedMessage.displayName) {
+    displayName = parsedMessage.displayName;
   } else {
-    name = `user-${uuidv4()}`;
+    displayName = `user-${id}`;
   }
   let userKey = uuidv4();
-  let color = parsedMessage.color
-    ? parsedMessage.color
-    : [Math.random(), Math.random(), Math.random()];
-  userMap.set(userKey, { name, color });
+  let color = parsedMessage.color ? parsedMessage.color : getRandomColor();
+  let crosshairPos = [0.5, 0.5, 0.5];
+  userMap.set(userKey, { id, displayName, color, crosshairPos });
   return userKey;
 }
 
@@ -70,7 +95,11 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
   const connectionParams = queryString.parse(params);
   const session = connectionParams["session"];
   // console.log('new connection on session ' + session);
-  connections.push(websocketConnection);
+  if (connections.findIndex((w) => w === websocketConnection) === -1) {
+    connections.push(websocketConnection);
+    console.log("added connection");
+    console.log(connections.length + " connections");
+  }
 
   let scene = null;
   if (session) {
@@ -102,13 +131,26 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
             key: uuidv4(),
           };
           sessionMap.set(session, scene);
-          console.log('scene created for ' + session);
+          console.log("scene created for " + session);
           let userKey = assignUser(parsedMessage);
           let user = userMap.get(userKey);
           res["url"] = getSessionUrl(connectionRequest, session);
           res["key"] = scene.key;
+          res["userId"] = user.id;
           res["userKey"] = userKey;
-          res["userName"] = user.name;
+          res["userName"] = user.displayName;
+
+          // add this as a session owner
+          sessionOwnersMap.set(session, [user.id]);
+
+          if (!connectionUserMap.has(websocketConnection)) {
+            connectionUserMap.set(websocketConnection, user.name);
+          } else {
+            console.log(
+              "connection already associatged with " +
+                connectionUserMap.get(websocketConnection)
+            );
+          }
           // console.log('created session ' + session);
           // console.log('url: ' + res['url']);
         }
@@ -135,19 +177,34 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
       case JOIN:
         if (scene) {
           res.op = JOIN;
-          res["isController"] = parsedMessage.key === scene.key;
+          res["isController"] = parsedMessage.key === scene.key;          
           res["url"] = getSessionUrl(connectionRequest, session);
           res["userList"] = Array.from(userMap.values());
           let userKey = assignUser(parsedMessage);
           res["userKey"] = userKey;
           let user = userMap.get(userKey);
-          res["userName"] = user.name;
+          res["userId"] = user.id;
+          res["userName"] = user.displayName;
+
+          // add user as controller
+          if(res["isController"]) {
+            sessionOwnersMap.get(session).push(user.id);
+          }
+
+          if (!connectionUserMap.has(websocketConnection)) {
+            connectionUserMap.set(websocketConnection, user.id);
+          } else {
+            console.log(
+              "connection already associated with " +
+                connectionUserMap.get(websocketConnection)
+            );
+          }
           sendOtherClientsMessage(websocketConnection, {
             op: USER_JOINED,
             user: userMap.get(res["userKey"]),
           });
-        }else {
-          console.log('scene for ' + session + ' not found');
+        } else {
+          console.log("scene for " + session + " not found");
         }
         break;
       case UPDATE_IMAGE_OPTIONS:
@@ -194,39 +251,41 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
           });
         }
         break;
-      case UPDATE_CROSSHAIRS:
+      case UPDATE_USER_STATE:
         if (userMap.has(parsedMessage.userKey)) {
           let user = userMap.get(parsedMessage.userKey);
-          if (parsedMessage.name == userMap.name) {
-            console.log('updating crosshairs for ' + user.name);
-            console.log(parsedMessage.crosshairsPos);
-            user.crosshairsPos = parsedMessage.crosshairsPos;
+          if (parsedMessage.id == user.id) {
+            user.color = parsedMessage.color;
+            user.displayName = parsedMessage.displayName;
+
             userMap.set(parsedMessage.userKey, user);
+          }
+        }
+        break;
 
+      case UPDATE_CROSSHAIR_POS:
+        if (userMap.has(parsedMessage.userKey)) {
+          let user = userMap.get(parsedMessage.userKey);
+          if (parsedMessage.id == user.id) {
+            console.log("updating crosshairs for " + user.displayName);
+            console.log(parsedMessage.crosshairPos);
 
-            // sendOtherClientsMessage(websocketConnection, {
-            //   op: UPDATE_CROSSHAIRS,
-            //   userName: user.name,
-            //   crosshairsPos: user.crosshairsPos,
-            // });
+            user.crosshairPos = parsedMessage.crosshairPos;
+            userMap.set(parsedMessage.userKey, user);
             let msg = {
-                op: UPDATE_CROSSHAIRS,
-                userName: user.name,
-                crosshairsPos: user.crosshairsPos,
-              };
+              op: CROSSHAIR_POS_UPDATED,
+              id: user.id,
+              isController: this.sessionOwnersMap.get(session).includes(user.id),
+              crosshairPos: parsedMessage.crosshairPos,
+            };
 
-            for(const client of wsServer.clients) {
-              if(client !==  websocketConnection) {
-                client.send(JSON.stringify(msg));
-              }
-              
-            }
+            sendOtherClientsMessage(websocketConnection, msg);
           }
         }
         break;
 
       default:
-        res["op"] = UPDATE;
+        res["op"] = SCENE_STATE_UPDATED;
         res["azimuth"] = scene.azimuth;
         res["elevation"] = scene.elevation;
         res["zoom"] = scene.zoom;

@@ -275,7 +275,7 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
             let msg = {
               op: CROSSHAIR_POS_UPDATED,
               id: user.id,
-              isController: this.sessionOwnersMap.get(session).includes(user.id),
+              isController: sessionOwnersMap.get(session).includes(user.id),
               crosshairPos: parsedMessage.crosshairPos,
             };
 

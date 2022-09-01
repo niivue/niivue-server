@@ -200,7 +200,7 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
         break;
       case MESSAGE.JOIN:
         if (scene) {
-          res.op = SESSION_JOINED;
+          res.op = MESSAGE.SESSION_JOINED;
           res["isController"] = parsedMessage.key === scene.key;          
           res["url"] = getSessionUrl(connectionRequest, session);
           res["userList"] = Array.from(userMap.values());
@@ -252,7 +252,7 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
       case MESSAGE.SET_4D_VOL_INDEX:
         if (scene.key === parsedMessage.key) {
           sendOtherClientsMessage(websocketConnection, {
-            op: SET_4D_VOL_INDEX,
+            op: MESSAGE.SET_4D_VOL_INDEX,
             url: parsedMessage.url,
             index: parsedMessage.index,
           });
@@ -297,7 +297,7 @@ wsServer.on("connection", (websocketConnection, connectionRequest) => {
             user.crosshairPos = parsedMessage.crosshairPos;
             userMap.set(parsedMessage.userKey, user);
             let msg = {
-              op: CMESSAGE.ROSSHAIR_POS_UPDATED,
+              op: MESSAGE.CROSSHAIR_POS_UPDATED,
               id: user.id,
               isController: sessionOwnersMap.get(session).includes(user.id),
               crosshairPos: parsedMessage.crosshairPos,
